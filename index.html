@@ -1,1093 +1,229 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Delivery Planner</title>
-<style>
-  /* ---------- dark (default) ---------- */
-  :root{
-    --bg:#171717; --panel:#2C2C2A; --panel2:#1f1f1e; --line:#5F5E5A; --line-soft:rgba(95,94,90,.3);
-    --t1:#D3D1C7; --t2:#9C9A92;
-    --hover:#353532; --hover2:#373633; --shadow:rgba(0,0,0,.45); --scrim:rgba(8,8,8,.76);
-    --hatch:rgba(95,94,90,.12); --due-tint:rgba(113,43,19,.55); --due-cell:rgba(113,43,19,.14);
-    --today-cell:rgba(180,178,169,.05); --drop:rgba(93,202,165,.16);
-    --gray-f:#444441; --gray-s:#B4B2A9; --gray-t:#B4B2A9;
-    --purple-f:#3C3489; --purple-s:#AFA9EC; --purple-t:#CECBF6;
-    --teal-f:#085041;  --teal-s:#5DCAA5;  --teal-t:#9FE1CB;  --primary-hover:#0a6753;
-    --coral-f:#712B13; --coral-s:#F0997B; --coral-t:#F0997B;
-    --banner:linear-gradient(90deg,rgba(60,52,137,.5),var(--panel));
-    --row:82px; --tfs:11.5px; --sfs:9.5px; --pad:8px 11px;
-  }
-  /* ---------- light ---------- */
-  body.light{
-    --bg:#F4F3EE; --panel:#E9E7DF; --panel2:#FBFAF6; --line:#C8C5B9; --line-soft:rgba(90,88,80,.2);
-    --t1:#2A2924; --t2:#6E6C64;
-    --hover:#DEDCD2; --hover2:#DEDCD2; --shadow:rgba(60,58,50,.18); --scrim:rgba(40,38,32,.45);
-    --hatch:rgba(90,88,80,.1); --due-tint:rgba(193,86,45,.3); --due-cell:rgba(193,86,45,.1);
-    --today-cell:rgba(90,88,80,.05); --drop:rgba(30,122,99,.14);
-    --gray-f:#E5E3D9; --gray-s:#A8A69B; --gray-t:#55534C;
-    --purple-f:#E2DEF8; --purple-s:#7E73D6; --purple-t:#3A3287;
-    --teal-f:#D2ECE1;  --teal-s:#2E8A70;  --teal-t:#0B4A3C;  --primary-hover:#BFE4D3;
-    --coral-f:#F8DED0; --coral-s:#C4602F; --coral-t:#7B3013;
-    --banner:linear-gradient(90deg,rgba(126,115,214,.18),var(--panel));
-  }
-  body.compact{ --row:60px; --tfs:10.5px; --sfs:9px; --pad:5px 9px; }
-
-  *{box-sizing:border-box}
-  html,body{background:var(--bg)}
-  body{margin:0;color:var(--t1);font-family:'Anthropic Sans',Inter,Helvetica,Arial,sans-serif;
-       padding:24px 26px 40px;-webkit-font-smoothing:antialiased;
-       transition:background .18s,color .18s}
-
-  .banner{display:none;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
-          background:var(--banner);border:1px solid var(--purple-s);border-radius:12px;
-          padding:11px 16px;margin-bottom:16px;font-size:12px;color:var(--purple-t)}
-  body.viewonly .banner{display:flex}
-  body.viewonly .hide-ro{display:none !important}
-
-  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:18px}
-  .titleblock h1{font-size:22px;margin:0;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
-  .titleblock h1 .edit{font-size:10px;color:var(--t2);border:1px solid var(--line);border-radius:5px;
-                       padding:2px 6px;cursor:pointer;opacity:0;transition:opacity .14s}
-  .titleblock:hover h1 .edit{opacity:1}
-  .sub{font-size:12px;color:var(--t2);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-  .chip{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--t2);
-        background:var(--panel);border:1px solid var(--line-soft);border-radius:20px;padding:3px 10px}
-  .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
-
-  .controls{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-  .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
-  button{font:inherit;font-size:11.5px;background:var(--panel);color:var(--t1);border:1px solid var(--line);
-         border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap;
-         transition:border-color .14s,background .14s,transform .06s}
-  button:hover{border-color:var(--gray-s);background:var(--hover)}
-  button:active{transform:translateY(1px)}
-  button.primary{background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)}
-  button.primary:hover{background:var(--primary-hover)}
-  button.danger{background:var(--coral-f);border-color:var(--coral-s);color:var(--coral-t)}
-  button.on{background:var(--gray-f);border-color:var(--gray-s)}
-  button:disabled{opacity:.4;cursor:default}
-  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
-  .seg button{border:0;border-radius:0;padding:7px 10px;background:transparent}
-  .seg button+button{border-left:1px solid var(--line)}
-  select.top,input.top{font:inherit;font-size:11.5px;background:var(--panel);color:var(--t1);
-        border:1px solid var(--line);border-radius:8px;padding:7px 10px;max-width:210px}
-  .vline{width:1px;height:22px;background:var(--line);margin:0 2px}
-
-  .board{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel2)}
-  .scroll{overflow-x:auto}
-  .grid{display:grid;grid-template-columns:200px repeat(var(--days),minmax(126px,1fr));min-width:max-content}
-
-  .corner{background:var(--panel);padding:12px 14px;font-size:10px;color:var(--t2);letter-spacing:.09em;
-          border-bottom:1px solid var(--line);border-right:1px solid var(--line);
-          position:sticky;left:0;z-index:6;display:flex;align-items:center}
-  .dayhead{background:var(--panel);padding:10px 6px;text-align:center;cursor:pointer;user-select:none;
-           border-bottom:1px solid var(--line);border-right:1px solid var(--line-soft);position:relative}
-  .dayhead:hover{background:var(--hover2)}
-  .dayhead .dow{font-size:9px;color:var(--t2);letter-spacing:.09em}
-  .dayhead .date{font-size:13px;font-weight:600;margin-top:3px;letter-spacing:-.01em}
-  .dayhead.off .dow,.dayhead.off .date{color:var(--t2)}
-  .dayhead.deadline{background:linear-gradient(180deg,var(--due-tint),var(--panel))}
-  .dayhead.deadline .dow,.dayhead.deadline .date{color:var(--coral-t)}
-  .dayhead.today::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--gray-s)}
-  .flag{position:absolute;top:5px;right:6px;font-size:8px;letter-spacing:.08em;border-radius:4px;
-        padding:1px 4px;background:var(--line-soft)}
-  .flag.due{color:var(--coral-t)} .flag.off{color:var(--t2)}
-
-  .lane{padding:12px 14px;border-right:1px solid var(--line);border-bottom:1px solid var(--line-soft);
-        display:flex;flex-direction:column;justify-content:center;background:var(--panel2);
-        position:sticky;left:0;z-index:4}
-  .lane .name{font-size:12.5px;font-weight:600}
-  .lane .lsub{font-size:10px;color:var(--t2);margin-top:3px}
-  .lane .lactions{display:flex;gap:4px;margin-top:7px;opacity:0;transition:opacity .14s}
-  .lane:hover .lactions{opacity:1}
-  .lane .lactions button{padding:2px 6px;font-size:9.5px;border-radius:5px;background:var(--panel)}
-
-  .cell{border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);min-height:var(--row)}
-  .cell.off{background:repeating-linear-gradient(45deg,transparent,transparent 7px,
-            var(--hatch) 7px,var(--hatch) 14px),var(--panel)}
-  .cell.deadline{background-color:var(--due-cell)}
-  .cell.today{background-color:var(--today-cell)}
-  .cell.over{background-color:var(--drop);box-shadow:inset 0 0 0 1px var(--teal-s)}
-
-  .task{margin:7px;border-radius:9px;padding:var(--pad);position:relative;cursor:grab;z-index:3;
-        display:flex;flex-direction:column;justify-content:center;overflow:hidden;border:1.4px solid;
-        transition:box-shadow .14s,opacity .14s}
-  .task:hover{box-shadow:0 3px 12px var(--shadow)}
-  .task.dragging{opacity:.3}
-  .task .tt{font-size:var(--tfs);font-weight:600;line-height:1.28}
-  .task .ts{font-size:var(--sfs);margin-top:3px;opacity:.82;line-height:1.3}
-  .task .meta{font-size:8.5px;margin-top:5px;opacity:.72;letter-spacing:.05em;text-transform:uppercase}
-  body.compact .task .ts,body.compact .task .meta{display:none}
-  .task .note{position:absolute;top:6px;right:8px;font-size:9px;opacity:.75}
-  .task .handle{position:absolute;right:0;top:0;bottom:0;width:10px;cursor:ew-resize;border-radius:0 8px 8px 0}
-  .task:hover .handle{background:var(--line-soft)}
-  body.viewonly .task{cursor:default}
-  body.viewonly .task .handle{display:none}
-  .task.s-done{opacity:.45}
-  .task.s-done .tt{text-decoration:line-through}
-  .task.s-blocked{border-style:dashed}
-  .task.s-active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:currentColor;opacity:.9}
-  .task.dim{opacity:.14}
-  .c-coral{background:var(--coral-f);border-color:var(--coral-s);color:var(--coral-t)}
-  .c-purple{background:var(--purple-f);border-color:var(--purple-s);color:var(--purple-t)}
-  .c-teal{background:var(--teal-f);border-color:var(--teal-s);color:var(--teal-t)}
-  .c-gray{background:var(--gray-f);border-color:var(--gray-s);color:var(--gray-t)}
-
-  .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
-  .legend .lg{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:var(--t2);cursor:pointer;
-              border:1px solid var(--line-soft);border-radius:8px;padding:5px 11px;background:var(--panel2)}
-  .legend .lg:hover{color:var(--t1);border-color:var(--line)}
-  .sw{width:12px;height:12px;border-radius:3px;border:1.3px solid}
-  .hint{margin-top:14px;font-size:10.5px;color:var(--t2);line-height:1.8;max-width:940px}
-  kbd{background:var(--panel);border:1px solid var(--line-soft);border-radius:4px;padding:1px 5px;font-size:9.5px}
-
-  .overlay{position:fixed;inset:0;background:var(--scrim);backdrop-filter:blur(3px);display:none;
-           align-items:center;justify-content:center;z-index:60;padding:20px}
-  .overlay.on{display:flex}
-  .modal{background:var(--panel2);border:1px solid var(--line);border-radius:16px;width:min(480px,100%);
-         max-height:90vh;overflow:auto;box-shadow:0 24px 60px var(--shadow)}
-  .modal .mhead{padding:18px 22px 14px;border-bottom:1px solid var(--line-soft)}
-  .modal .mbody{padding:6px 22px 4px}
-  .modal h2{font-size:15px;margin:0;font-weight:600}
-  .modal .mhint{font-size:10.5px;color:var(--t2);margin-top:4px}
-  label{display:block;font-size:10px;color:var(--t2);margin:13px 0 5px;letter-spacing:.07em;text-transform:uppercase}
-  input,select,textarea{width:100%;font:inherit;font-size:12.5px;background:var(--bg);color:var(--t1);
-               border:1px solid var(--line);border-radius:8px;padding:9px 11px}
-  textarea{resize:vertical;line-height:1.6}
-  #f-notes{min-height:70px;font-size:12px}
-  #txtArea{min-height:210px;font-size:11.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gray-s)}
-  .swatches{display:flex;gap:8px;margin-top:5px}
-  .swatch{flex:1;height:30px;border-radius:8px;border:2px solid transparent;cursor:pointer}
-  .swatch.sel{border-color:var(--t1)}
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .row3{display:grid;grid-template-columns:1.2fr 1fr .7fr;gap:12px}
-  .mact{display:flex;gap:8px;justify-content:space-between;padding:16px 22px 18px;margin-top:14px;
-        border-top:1px solid var(--line-soft);flex-wrap:wrap}
-  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
-         background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 18px;
-         font-size:12px;z-index:90;transition:opacity .2s,transform .2s;pointer-events:none;color:var(--t1)}
-  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-
-  @page{ size:A4 landscape; margin:10mm; }
-  @media print{
-    body{padding:0}
-    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .controls,.hint,.overlay,.toast,.lane .lactions,.titleblock h1 .edit,.banner{display:none !important}
-    .scroll{overflow:visible !important}
-    .grid{min-width:0 !important;grid-template-columns:150px repeat(var(--days),minmax(0,1fr)) !important}
-    .task{box-shadow:none !important}
-    .task .tt{font-size:8.5px}.task .ts{font-size:7px}.task .meta{font-size:6.5px}
-    .lane .name{font-size:9px}.lane .lsub{font-size:7.5px}
-    .dayhead .date{font-size:9.5px}.dayhead .dow{font-size:7px}
-    .cell{min-height:52px}
-    .titleblock h1{font-size:15px}.sub{font-size:9px}
-    .legend .lg{font-size:8.5px;padding:3px 8px}
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#0f1115" />
+  <title>Delivery Planner</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-
-<div id="capture">
-  <div class="banner">
-    <span><strong>Shared plan — read only.</strong> Edits here are not saved.</span>
-    <button onclick="adoptShared()">Copy into my planner</button>
+  <div id="readonlyBanner" class="readonly-banner" hidden>
+    <div>
+      <strong>Shared plan</strong>
+      <span>This is a read-only snapshot. Make a copy to edit it in your browser.</span>
+    </div>
+    <button id="copySharedBtn" class="btn btn-secondary">Make editable copy</button>
   </div>
 
-  <div class="topbar">
-    <div class="titleblock">
-      <h1><span id="boardName"></span><span class="edit hide-ro" onclick="renameBoard()">rename</span></h1>
-      <div class="sub" id="sub"></div>
-    </div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark" aria-hidden="true">DP</div>
+        <div>
+          <div class="brand">Delivery Planner</div>
+          <div class="brand-sub">Delivery weeks without spreadsheet pain</div>
+        </div>
+      </div>
 
-    <div class="controls">
-      <div class="bar hide-ro">
-        <select class="top" id="boardSel" onchange="switchBoard(this.value)" title="Switch plan"></select>
-        <div class="seg">
-          <button onclick="newBoard()" title="New plan">＋ Plan</button>
-          <button onclick="dupBoard()" title="Duplicate plan">Copy</button>
-          <button onclick="rollForward()" title="Carry unfinished work forward">Roll →</button>
-          <button onclick="delBoard()" title="Delete plan">✕</button>
-        </div>
-        <div class="vline"></div>
-        <input class="top" type="date" id="startDate" onchange="setStart(this.value)" title="Start date"/>
-        <div class="seg">
-          <button onclick="shift(-7)" title="Back a week">‹‹</button>
-          <button onclick="shift(-1)">‹</button>
-          <button onclick="jumpToday()">Today</button>
-          <button onclick="shift(1)">›</button>
-          <button onclick="shift(7)" title="Forward a week">››</button>
-        </div>
-        <div class="seg">
-          <button onclick="changeDays(-1)">−</button>
-          <button onclick="changeDays(1)">＋</button>
-        </div>
+      <div class="sidebar-section">
+        <div class="section-label">Plans</div>
+        <div id="planList" class="plan-list"></div>
+        <button id="newPlanBtn" class="btn btn-ghost full">+ New plan</button>
       </div>
-      <div class="bar">
-        <button class="primary hide-ro" onclick="newTask()">＋ Task</button>
-        <button class="hide-ro" onclick="addLane()" id="addRowBtn">＋ Row</button>
-        <div class="seg">
-          <button id="viewLane" onclick="setGroup('lane')" class="on">By workstream</button>
-          <button id="viewOwner" onclick="setGroup('owner')">By owner</button>
-        </div>
-        <select class="top" id="ownerFilter" onchange="setFilter(this.value)"></select>
-        <div class="seg">
-          <button id="themeBtn" onclick="toggleTheme()" title="Switch theme">☀ Light</button>
-          <button id="densityBtn" onclick="toggleDensity()">Compact</button>
-        </div>
-        <div class="seg hide-ro">
-          <button onclick="undo()" title="Undo (Ctrl+Z)">↶</button>
-          <button onclick="redo()" title="Redo (Ctrl+Shift+Z)">↷</button>
-        </div>
-        <div class="vline"></div>
-        <button onclick="shareLink()">Share</button>
-        <button onclick="copySummary()">Summary</button>
-        <button onclick="exportPDF()">PDF</button>
-        <div class="seg">
-          <button onclick="exportICS()">ICS</button>
-          <button onclick="exportJSON()">Export</button>
-          <button class="hide-ro" onclick="importJSON()">Import</button>
-        </div>
+
+      <div class="sidebar-section sidebar-bottom">
+        <div class="section-label">View</div>
+        <button id="themeBtn" class="sidebar-action">Theme <span id="themeValue">Dark</span></button>
+        <button id="compactBtn" class="sidebar-action">Density <span id="densityValue">Comfortable</span></button>
+        <button id="helpBtn" class="sidebar-action">Keyboard shortcuts <span>?</span></button>
       </div>
-    </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title">
+          <button id="sidebarToggle" class="icon-btn mobile-only" aria-label="Toggle plans">☰</button>
+          <div>
+            <div class="eyebrow">DELIVERY PLAN</div>
+            <div class="title-row">
+              <h1 id="planTitle" tabindex="0" title="Double-click to rename">Plan</h1>
+              <span id="saveState" class="save-state">Saved locally</span>
+            </div>
+            <div id="planMeta" class="plan-meta"></div>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="undoBtn" class="icon-btn" title="Undo (Ctrl/Cmd+Z)">↶</button>
+          <button id="redoBtn" class="icon-btn" title="Redo (Ctrl/Cmd+Shift+Z)">↷</button>
+          <div class="split-dropdown">
+            <button id="exportBtn" class="btn btn-secondary">Export</button>
+            <button id="exportMenuBtn" class="btn btn-secondary split-caret" aria-label="Export menu">▾</button>
+            <div id="exportMenu" class="menu" hidden>
+              <button data-export="json">JSON backup</button>
+              <button data-export="csv">CSV tasks</button>
+              <button data-export="ics">Calendar (.ics)</button>
+              <button data-export="print">Print / PDF</button>
+              <button data-export="import">Import JSON backup</button>
+            </div>
+          </div>
+          <button id="shareBtn" class="btn btn-secondary">Share</button>
+          <button id="addTaskBtn" class="btn btn-primary">+ Add task</button>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Plan summary">
+        <article class="metric-card">
+          <div class="metric-label">Progress</div>
+          <div class="metric-main"><strong id="metricProgress">0%</strong><span id="metricDone">0 of 0 done</span></div>
+          <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-label">In progress</div>
+          <div class="metric-main"><strong id="metricActive">0</strong><span>active tasks</span></div>
+        </article>
+        <article class="metric-card danger-card">
+          <div class="metric-label">Blocked</div>
+          <div class="metric-main"><strong id="metricBlocked">0</strong><span>need attention</span></div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-label">Next deadline</div>
+          <div class="metric-main"><strong id="metricDeadline">—</strong><span id="metricDeadlineSub">No deadline</span></div>
+        </article>
+      </section>
+
+      <section class="planner-card">
+        <div class="planner-toolbar">
+          <div class="toolbar-left">
+            <div class="segmented" role="group" aria-label="Group timeline">
+              <button id="groupLaneBtn" class="active">Workstreams</button>
+              <button id="groupOwnerBtn">Owners</button>
+            </div>
+            <label class="search-wrap">
+              <span>⌕</span>
+              <input id="searchInput" type="search" placeholder="Search tasks" autocomplete="off" />
+            </label>
+            <select id="ownerFilter" class="select-inline" aria-label="Filter by owner">
+              <option value="">All owners</option>
+            </select>
+            <select id="statusFilter" class="select-inline" aria-label="Filter by status">
+              <option value="">All statuses</option>
+              <option value="planned">Planned</option>
+              <option value="active">In progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div class="toolbar-right">
+            <label class="date-control"><span>Start</span><input id="startDate" type="date" /></label>
+            <label class="date-control"><span>Days</span><input id="dayCount" type="number" min="3" max="31" /></label>
+            <button id="todayBtn" class="btn btn-ghost">Today</button>
+            <button id="addLaneBtn" class="btn btn-ghost">+ Workstream</button>
+          </div>
+        </div>
+
+        <div class="timeline-wrap" id="timelineWrap">
+          <div id="timeline" class="timeline" aria-label="Delivery timeline"></div>
+          <div id="emptyState" class="empty-state" hidden>
+            <div class="empty-icon">✓</div>
+            <h3>No tasks match this view</h3>
+            <p>Clear the filters or add a task to this delivery plan.</p>
+          </div>
+        </div>
+
+        <footer class="planner-footer">
+          <div class="legend" id="legend"></div>
+          <div class="footer-hints">Double-click a cell to add · drag tasks to move · click a task to edit · Shift-click a date to toggle non-working</div>
+        </footer>
+      </section>
+    </main>
   </div>
 
-  <div class="board"><div class="scroll"><div class="grid" id="grid"></div></div></div>
-  <div class="legend" id="legend"></div>
-</div>
-
-<div class="hint">
-  Drag a task to move it · drag its right edge to change duration · click to edit, duplicate or delete · double-click an empty cell to add one there.<br>
-  In <strong>By owner</strong> view, dropping a task on a row reassigns it. Click a date for a deadline, <kbd>shift</kbd>-click for a non-working day. <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>Esc</kbd> close · <kbd>Enter</kbd> save.<br>
-  <span id="storeNote"></span>
-</div>
-
-<div class="overlay" id="overlay">
-  <div class="modal">
-    <div class="mhead"><h2 id="mtitle">Edit task</h2><div class="mhint" id="mhint"></div></div>
-    <div class="mbody">
-      <label>Title</label><input id="f-title" maxlength="70"/>
-      <label>Detail</label><input id="f-sub" maxlength="90"/>
-      <div class="row2">
-        <div><label>Owner</label><input id="f-owner" maxlength="24" placeholder="optional"/></div>
-        <div><label>Status</label>
-          <select id="f-status">
-            <option value="planned">Planned</option>
-            <option value="active">In progress</option>
-            <option value="blocked">Blocked</option>
-            <option value="done">Done</option>
-          </select>
+  <dialog id="taskDialog" class="modal">
+    <form method="dialog" id="taskForm">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow" id="taskDialogEyebrow">TASK</div>
+          <h2 id="taskDialogTitle">Add task</h2>
+        </div>
+        <button value="cancel" class="icon-btn" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <label class="field full-field">Title<input id="taskTitle" maxlength="100" required placeholder="e.g. Pathways → UAT" /></label>
+        <label class="field full-field">Detail<input id="taskDetail" maxlength="140" placeholder="Short context shown on the timeline" /></label>
+        <div class="form-grid two">
+          <label class="field">Owner<input id="taskOwner" maxlength="40" placeholder="Ata, QA, DevOps…" /></label>
+          <label class="field">Status<select id="taskStatus"><option value="planned">Planned</option><option value="active">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select></label>
+        </div>
+        <div class="form-grid three">
+          <label class="field">Workstream<select id="taskLane"></select></label>
+          <label class="field">Start date<input id="taskStart" type="date" required /></label>
+          <label class="field">Duration<input id="taskDuration" type="number" min="1" max="31" required /></label>
+        </div>
+        <label class="field full-field">Notes<textarea id="taskNotes" rows="4" placeholder="Blockers, dependencies, links, deployment notes…"></textarea></label>
+        <div class="field full-field">
+          <span class="field-label">Colour</span>
+          <div id="colorPicker" class="color-picker">
+            <button type="button" data-color="coral" class="color-option coral" aria-label="Critical"></button>
+            <button type="button" data-color="purple" class="color-option purple" aria-label="Secondary"></button>
+            <button type="button" data-color="teal" class="color-option teal" aria-label="Delivery"></button>
+            <button type="button" data-color="gray" class="color-option gray" aria-label="Neutral"></button>
+          </div>
         </div>
       </div>
-      <div class="row3">
-        <div><label>Row</label><select id="f-lane"></select></div>
-        <div><label>Start</label><select id="f-day"></select></div>
-        <div><label>Days</label><input id="f-span" type="number" min="1" value="1"/></div>
+      <div class="modal-actions">
+        <div><button id="deleteTaskBtn" type="button" class="btn btn-danger" hidden>Delete</button></div>
+        <div class="action-group"><button id="duplicateTaskBtn" type="button" class="btn btn-secondary" hidden>Duplicate</button><button value="cancel" class="btn btn-secondary">Cancel</button><button id="saveTaskBtn" value="default" class="btn btn-primary">Save task</button></div>
       </div>
-      <label>Notes</label><textarea id="f-notes" placeholder="Context, blockers, links — kept off the card"></textarea>
-      <label>Colour</label>
-      <div class="swatches" id="f-colors"></div>
-    </div>
-    <div class="mact">
-      <button class="danger" id="f-del" onclick="deleteTask()">Delete</button>
-      <div style="display:flex;gap:8px">
-        <button id="f-dup" onclick="duplicateTask()">Duplicate</button>
-        <button onclick="closeModal()">Cancel</button>
-        <button class="primary" onclick="saveTask()">Save</button>
+    </form>
+  </dialog>
+
+  <dialog id="planDialog" class="modal small-modal">
+    <form method="dialog" id="planForm">
+      <div class="modal-head"><div><div class="eyebrow">PLAN</div><h2 id="planDialogTitle">New plan</h2></div><button value="cancel" class="icon-btn">×</button></div>
+      <div class="modal-body">
+        <label class="field full-field">Name<input id="newPlanName" maxlength="80" required /></label>
+        <label class="field full-field">Start date<input id="newPlanStart" type="date" required /></label>
+        <label class="field full-field">Duration<select id="newPlanDays"><option value="7">1 week</option><option value="10">2 work weeks</option><option value="14">2 weeks</option><option value="21">3 weeks</option></select></label>
       </div>
-    </div>
-  </div>
-</div>
+      <div class="modal-actions"><div></div><div class="action-group"><button value="cancel" class="btn btn-secondary">Cancel</button><button value="default" class="btn btn-primary">Create plan</button></div></div>
+    </form>
+  </dialog>
 
-<div class="overlay" id="textOverlay">
-  <div class="modal">
-    <div class="mhead"><h2 id="txtTitle">Summary</h2><div class="mhint" id="txtHint"></div></div>
-    <div class="mbody"><textarea id="txtArea" spellcheck="false"></textarea></div>
-    <div class="mact">
-      <div></div>
-      <div style="display:flex;gap:8px">
-        <button onclick="closeText()">Close</button>
-        <button class="primary" id="txtAction">Copy</button>
+  <dialog id="laneDialog" class="modal small-modal">
+    <form method="dialog" id="laneForm">
+      <div class="modal-head"><div><div class="eyebrow">WORKSTREAM</div><h2 id="laneDialogTitle">Add workstream</h2></div><button value="cancel" class="icon-btn">×</button></div>
+      <div class="modal-body">
+        <label class="field full-field">Name<input id="laneName" maxlength="60" required /></label>
+        <label class="field full-field">Description<input id="laneDetail" maxlength="90" placeholder="Optional" /></label>
       </div>
+      <div class="modal-actions"><div><button id="deleteLaneBtn" type="button" class="btn btn-danger" hidden>Delete</button></div><div class="action-group"><button value="cancel" class="btn btn-secondary">Cancel</button><button value="default" class="btn btn-primary">Save</button></div></div>
+    </form>
+  </dialog>
+
+  <dialog id="shareDialog" class="modal small-modal">
+    <div class="modal-head"><div><div class="eyebrow">SHARE</div><h2>Share a snapshot</h2></div><button id="shareCloseBtn" class="icon-btn">×</button></div>
+    <div class="modal-body">
+      <p class="modal-copy">The full plan is encoded in the URL. Nothing is uploaded anywhere. Anyone with the link sees a read-only snapshot.</p>
+      <label class="field full-field">Share link<textarea id="shareUrl" rows="4" readonly></textarea></label>
     </div>
-  </div>
-</div>
+    <div class="modal-actions"><div></div><div class="action-group"><button id="copyShareBtn" class="btn btn-primary">Copy link</button></div></div>
+  </dialog>
 
-<div class="toast" id="toast"></div>
+  <dialog id="helpDialog" class="modal small-modal">
+    <div class="modal-head"><div><div class="eyebrow">SHORTCUTS</div><h2>Move faster</h2></div><button id="helpCloseBtn" class="icon-btn">×</button></div>
+    <div class="modal-body shortcuts">
+      <div><kbd>Ctrl/Cmd</kbd> + <kbd>Z</kbd><span>Undo</span></div>
+      <div><kbd>Ctrl/Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd><span>Redo</span></div>
+      <div><kbd>N</kbd><span>New task</span></div>
+      <div><kbd>/</kbd><span>Search tasks</span></div>
+      <div><kbd>Esc</kbd><span>Close dialog</span></div>
+    </div>
+  </dialog>
 
-<script>
-/* ============================================================
-   1. Constants and model
-   ============================================================ */
-const KEY = 'delivery-planner-v4';
-const COLORS = ['coral','purple','teal','gray'];
-const STATUSES = ['planned','active','blocked','done'];
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const STATUS_LABEL = { planned:'', active:'in progress', blocked:'blocked', done:'done' };
-const CDN_H2C = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-const CDN_JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-
-const clone = o => JSON.parse(JSON.stringify(o));
-const uid = () => 'x' + Math.random().toString(36).slice(2,9);
-const iso = d => d.toISOString().slice(0,10);
-const cssVar = n => getComputedStyle(document.body).getPropertyValue(n).trim();
-const statusColor = s => ({ planned:'var(--t2)', active:'var(--teal-s)',
-                            blocked:'var(--coral-s)', done:'var(--gray-s)' })[s];
-
-function emptyBoard(name){
-  return { id: uid(), name: name || 'New plan', start: iso(new Date()), days: 7,
-    deadlines: [], holidays: [],
-    legend: { coral:'Critical path', purple:'Secondary', teal:'Deploys', gray:'No action' },
-    lanes: [{ id: uid(), name: 'Workstream 1', sub: '' }], tasks: [] };
-}
-function seedBoard(){
-  const L = ['Curve','myAko core','Redcrier','ClearCare','Mill Support API','Nourish','Mobile App']
-    .map((n,i) => ({ id:'l'+i, name:n,
-      sub:['client deploy','UAT → Prod','critical path','FusionAuth + API','QA / review','deploy only','unblocked'][i] }));
-  const T = [
-    ['l0',0,1,'teal','Deploy changes','confirm time with Michelle','Ata','planned'],
-    ['l1',0,1,'teal','Merge → UAT','','Ata','active'],
-    ['l1',1,1,'teal','Prod deploy','','Ata','planned'],
-    ['l2',1,1,'coral','Pathways → UAT','','Ata','planned'],
-    ['l2',2,2,'coral','Pathways UAT testing','sign-off Fri','QA','planned'],
-    ['l2',5,2,'coral','PROD: pathways + calculator','linked · verify data in prod · Amplify URL','Ata','planned'],
-    ['l3',1,3,'purple','FusionAuth + API updates','2–3 days dev + verification','Ata','planned'],
-    ['l3',7,2,'purple','QA test cycle','ready to share with Simon','QA','planned'],
-    ['l4',3,1,'teal','Hand to client','in UAT','Ata','planned'],
-    ['l5',2,1,'teal','Deploy fix','already built','Ata','planned'],
-    ['l6',0,9,'gray','Nothing to deploy from my side','developer is not blocked on me','','planned']
-  ].map(r => ({ id:uid(), lane:r[0], day:r[1], span:r[2], color:r[3],
-                title:r[4], sub:r[5], owner:r[6], status:r[7], notes:'' }));
-  return { id: uid(), name: 'Redcrier week — Aug 2026', start: '2026-08-25', days: 9,
-           deadlines:[6], holidays:[6],
-           legend:{ coral:'Redcrier — critical path', purple:'ClearCare',
-                    teal:'myAko & other deploys', gray:'No action required' },
-           lanes:L, tasks:T };
-}
-
-let app = null, editing = null, pickedColor = 'teal', filterOwner = '', groupBy = 'lane', viewOnly = false;
-const board = () => app.boards.find(b => b.id === app.activeId) || app.boards[0];
-
-/* ============================================================
-   2. Theme
-   ============================================================ */
-function applyTheme(theme){
-  const light = theme === 'light';
-  document.body.classList.toggle('light', light);
-  const btn = document.getElementById('themeBtn');
-  btn.textContent = light ? '☾ Dark' : '☀ Light';
-  btn.title = light ? 'Switch to dark theme' : 'Switch to light theme';
-}
-function toggleTheme(){
-  const light = !document.body.classList.contains('light');
-  if (app) app.theme = light ? 'light' : 'dark';
-  applyTheme(light ? 'light' : 'dark');
-  save();
-  render();
-}
-function systemTheme(){
-  return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-}
-
-/* ============================================================
-   3. Dates
-   ============================================================ */
-function dayDate(i){ const d = new Date(board().start + 'T00:00:00'); d.setDate(d.getDate() + i); return d; }
-function dayInfo(i){
-  const d = dayDate(i);
-  return { dow: DOW[d.getDay()].toUpperCase(), short: DOW[d.getDay()],
-           label: d.getDate() + ' ' + MONTHS[d.getMonth()],
-           weekend: d.getDay() === 0 || d.getDay() === 6 };
-}
-function todayIndex(){
-  const t = new Date(); t.setHours(0,0,0,0);
-  const n = Math.round((t - new Date(board().start + 'T00:00:00')) / 86400000);
-  return (n >= 0 && n < board().days) ? n : -1;
-}
-
-/* ============================================================
-   4. Persistence, undo, toast
-   ============================================================ */
-let undoStack = [], redoStack = [], prevState = null;
-
-/* Storage adapter — artifact sandbox exposes window.storage; a hosted page
-   (GitHub Pages, Netlify, local file) has localStorage instead. Try the
-   sandbox first, fall back to localStorage, and read from either on boot so
-   a plan started in one place is still there in the other. */
-const Store = (() => {
-  const hasSandbox = () => { try { return !!(window.storage && window.storage.get); } catch(e){ return false; } };
-  const lsGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
-  const lsSet = (k,v) => { try { localStorage.setItem(k,v); return true; } catch(e){ return false; } };
-  return {
-    label: hasSandbox() ? 'this conversation' : 'this browser',
-    async get(k){
-      if (hasSandbox()){
-        try { const r = await window.storage.get(k, false); if (r && r.value) return r.value; } catch(e){}
-      }
-      return lsGet(k);
-    },
-    async set(k, v){
-      if (hasSandbox()){
-        try { await window.storage.set(k, v, false); return true; } catch(e){}
-      }
-      return lsSet(k, v);
-    }
-  };
-})();
-
-let saveWarned = false;
-async function save(){
-  if (viewOnly || !app) return;
-  const ok = await Store.set(KEY, JSON.stringify(app));
-  if (!ok && !saveWarned){
-    saveWarned = true;
-    toast('Could not save — use Export to keep this plan');
-  }
-}
-async function load(){
-  const raw = await Store.get(KEY);
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch(e){ return null; }
-}
-function commit(){
-  if (prevState){ undoStack.push(prevState); if (undoStack.length > 50) undoStack.shift(); }
-  redoStack = [];
-  prevState = JSON.stringify(app);
-  render(); save();
-}
-function undo(){
-  if (!undoStack.length){ toast('Nothing to undo'); return; }
-  redoStack.push(JSON.stringify(app));
-  app = JSON.parse(undoStack.pop());
-  prevState = JSON.stringify(app);
-  applyTheme(app.theme || systemTheme());
-  render(); save(); toast('Undone');
-}
-function redo(){
-  if (!redoStack.length){ toast('Nothing to redo'); return; }
-  undoStack.push(JSON.stringify(app));
-  app = JSON.parse(redoStack.pop());
-  prevState = JSON.stringify(app);
-  applyTheme(app.theme || systemTheme());
-  render(); save(); toast('Redone');
-}
-let toastTimer = null;
-function toast(msg){
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('on'), 2400);
-}
-
-/* ============================================================
-   5. Rows (workstream or owner grouping)
-   ============================================================ */
-function rows(){
-  const b = board();
-  if (groupBy === 'lane')
-    return b.lanes.map(l => ({ key: l.id, name: l.name, sub: l.sub, lane: l }));
-  const names = [...new Set(b.tasks.map(t => (t.owner || '').trim()))]
-                  .sort((a,z) => (a === '' ? 1 : z === '' ? -1 : a.localeCompare(z)));
-  if (!names.length) names.push('');
-  return names.map(n => ({ key:'o:' + n, owner:n, name:n || 'Unassigned',
-    sub: b.tasks.filter(t => (t.owner || '') === n).length + ' task(s)' }));
-}
-function rowKeyOf(t){ return groupBy === 'lane' ? t.lane : 'o:' + (t.owner || '').trim(); }
-
-/* ============================================================
-   6. Render
-   ============================================================ */
-function render(){
-  const b = board();
-  const g = document.getElementById('grid');
-  g.style.setProperty('--days', b.days);
-  g.innerHTML = '';
-
-  document.getElementById('boardName').textContent = b.name;
-  document.getElementById('startDate').value = b.start;
-  document.getElementById('viewLane').classList.toggle('on', groupBy === 'lane');
-  document.getElementById('viewOwner').classList.toggle('on', groupBy === 'owner');
-  document.getElementById('addRowBtn').disabled = groupBy !== 'lane';
-
-  const counts = { planned:0, active:0, blocked:0, done:0 };
-  b.tasks.forEach(t => counts[t.status || 'planned']++);
-  const sub = document.getElementById('sub');
-  sub.innerHTML = '';
-  const rs = document.createElement('span');
-  rs.textContent = dayInfo(0).label + ' – ' + dayInfo(b.days - 1).label + ' ' + dayDate(0).getFullYear();
-  sub.appendChild(rs);
-  if (b.deadlines.length){
-    const d = document.createElement('span'); d.style.color = 'var(--coral-s)';
-    d.textContent = 'Due ' + b.deadlines.slice().sort((x,y)=>x-y).map(i => dayInfo(i).short + ' ' + dayInfo(i).label).join(', ');
-    sub.appendChild(d);
-  }
-  ['active','blocked','done','planned'].forEach(s => {
-    if (!counts[s]) return;
-    const c = document.createElement('span'); c.className = 'chip';
-    c.innerHTML = '<i class="dot" style="background:' + statusColor(s) + '"></i>';
-    c.appendChild(document.createTextNode(counts[s] + ' ' + (STATUS_LABEL[s] || 'planned')));
-    sub.appendChild(c);
-  });
-
-  const bs = document.getElementById('boardSel');
-  bs.innerHTML = '';
-  app.boards.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name; bs.appendChild(o); });
-  bs.value = b.id;
-
-  const owners = [...new Set(b.tasks.map(t => (t.owner || '').trim()).filter(Boolean))].sort();
-  const of = document.getElementById('ownerFilter');
-  of.innerHTML = '';
-  const all = document.createElement('option'); all.value = ''; all.textContent = 'All owners'; of.appendChild(all);
-  owners.forEach(o => { const e = document.createElement('option'); e.value = o; e.textContent = o; of.appendChild(e); });
-  if (!owners.includes(filterOwner)) filterOwner = '';
-  of.value = filterOwner;
-
-  const corner = document.createElement('div');
-  corner.className = 'corner';
-  corner.textContent = groupBy === 'lane' ? 'WORKSTREAM' : 'OWNER';
-  g.appendChild(corner);
-
-  const ti = todayIndex();
-  for (let d = 0; d < b.days; d++){
-    const info = dayInfo(d);
-    const isOff = info.weekend || b.holidays.includes(d);
-    const h = document.createElement('div');
-    h.className = 'dayhead' + (b.deadlines.includes(d) ? ' deadline' : '') +
-                  (ti === d ? ' today' : '') + (isOff ? ' off' : '');
-    h.innerHTML = '<div class="dow"></div><div class="date"></div>';
-    h.querySelector('.dow').textContent = info.dow;
-    h.querySelector('.date').textContent = info.label;
-    if (b.deadlines.includes(d)){ const f = document.createElement('div'); f.className = 'flag due'; f.textContent = 'DUE'; h.appendChild(f); }
-    else if (b.holidays.includes(d)){ const f = document.createElement('div'); f.className = 'flag off'; f.textContent = 'OFF'; h.appendChild(f); }
-    if (!viewOnly){
-      h.title = 'Click: deadline · Shift-click: non-working day';
-      h.onclick = e => {
-        const arr = e.shiftKey ? b.holidays : b.deadlines;
-        const i = arr.indexOf(d);
-        i > -1 ? arr.splice(i,1) : arr.push(d);
-        commit();
-      };
-    } else h.style.cursor = 'default';
-    g.appendChild(h);
-  }
-
-  const R = rows();
-  R.forEach((r, ri) => {
-    const rowN = ri + 2;
-    const l = document.createElement('div');
-    l.className = 'lane'; l.style.gridRow = rowN; l.style.gridColumn = 1;
-    l.innerHTML = '<div class="name"></div><div class="lsub"></div>';
-    l.querySelector('.name').textContent = r.name;
-    l.querySelector('.lsub').textContent = r.sub || '';
-    if (groupBy === 'lane' && !viewOnly){
-      const acts = document.createElement('div'); acts.className = 'lactions';
-      const mk = (txt, title, fn) => { const x = document.createElement('button'); x.textContent = txt; x.title = title; x.onclick = fn; return x; };
-      acts.append(
-        mk('↑','Move up', () => { if (ri > 0){ b.lanes.splice(ri-1, 0, b.lanes.splice(ri,1)[0]); commit(); } }),
-        mk('↓','Move down', () => { if (ri < b.lanes.length-1){ b.lanes.splice(ri+1, 0, b.lanes.splice(ri,1)[0]); commit(); } }),
-        mk('rename','Rename', () => {
-          const n = prompt('Row name', r.lane.name); if (n === null) return;
-          const s = prompt('Sub-label', r.lane.sub || ''); if (s === null) return;
-          r.lane.name = n.trim() || r.lane.name; r.lane.sub = s.trim(); commit();
-        }),
-        mk('✕','Remove', () => {
-          if (!confirm('Remove "' + r.lane.name + '" and its tasks?')) return;
-          b.tasks = b.tasks.filter(t => t.lane !== r.lane.id);
-          b.lanes = b.lanes.filter(x => x.id !== r.lane.id);
-          commit();
-        })
-      );
-      l.appendChild(acts);
-    }
-    g.appendChild(l);
-
-    for (let d = 0; d < b.days; d++){
-      const info = dayInfo(d);
-      const c = document.createElement('div');
-      c.className = 'cell' + (info.weekend || b.holidays.includes(d) ? ' off' : '') +
-                    (b.deadlines.includes(d) ? ' deadline' : '') + (ti === d ? ' today' : '');
-      c.style.gridRow = rowN; c.style.gridColumn = d + 2;
-      if (!viewOnly){
-        c.ondragover = e => { e.preventDefault(); c.classList.add('over'); };
-        c.ondragleave = () => c.classList.remove('over');
-        c.ondrop = e => {
-          e.preventDefault(); c.classList.remove('over');
-          const t = b.tasks.find(x => x.id === e.dataTransfer.getData('id'));
-          if (!t) return;
-          const off = parseInt(e.dataTransfer.getData('off') || '0', 10);
-          if (groupBy === 'lane') t.lane = r.lane.id; else t.owner = r.owner;
-          t.day = Math.max(0, Math.min(b.days - t.span, d - off));
-          commit();
-        };
-        c.ondblclick = () => newTask(groupBy === 'lane' ? r.lane.id : null, d, groupBy === 'owner' ? r.owner : null);
-      }
-      g.appendChild(c);
-    }
-  });
-
-  b.tasks.forEach(t => {
-    const ri = R.findIndex(r => r.key === rowKeyOf(t));
-    if (ri < 0) return;
-    const span = Math.min(t.span, b.days - t.day);
-    const el = document.createElement('div');
-    el.className = 'task c-' + t.color + ' s-' + (t.status || 'planned') +
-                   (filterOwner && (t.owner || '') !== filterOwner ? ' dim' : '');
-    el.style.gridRow = ri + 2;
-    el.style.gridColumn = (t.day + 2) + ' / span ' + span;
-    el.draggable = !viewOnly;
-    el.title = t.title + (t.sub ? ' — ' + t.sub : '') + (t.notes ? '\n\n' + t.notes : '');
-    el.innerHTML = '<div class="tt"></div>' + (t.sub ? '<div class="ts"></div>' : '') +
-                   '<div class="meta"></div>' + (t.notes ? '<div class="note">✎</div>' : '') +
-                   (viewOnly ? '' : '<div class="handle"></div>');
-    el.querySelector('.tt').textContent = t.title;
-    if (t.sub) el.querySelector('.ts').textContent = t.sub;
-    const metaTxt = [groupBy === 'owner' ? (b.lanes.find(l => l.id === t.lane) || {}).name : t.owner,
-                     STATUS_LABEL[t.status || 'planned']].filter(Boolean).join(' · ');
-    const mEl = el.querySelector('.meta');
-    metaTxt ? mEl.textContent = metaTxt : mEl.remove();
-
-    if (!viewOnly){
-      el.ondragstart = e => {
-        const r = el.getBoundingClientRect();
-        e.dataTransfer.setData('id', t.id);
-        e.dataTransfer.setData('off', String(Math.floor((e.clientX - r.left) / (r.width / span))));
-        el.classList.add('dragging');
-      };
-      el.ondragend = () => el.classList.remove('dragging');
-      el.onclick = e => { if (!e.target.classList.contains('handle')) openModal(t); };
-      el.querySelector('.handle').onmousedown = e => {
-        e.preventDefault(); e.stopPropagation();
-        el.draggable = false;
-        const colW = el.getBoundingClientRect().width / span;
-        const x0 = e.clientX, s0 = t.span;
-        const move = ev => {
-          const n = Math.max(1, Math.min(b.days - t.day, s0 + Math.round((ev.clientX - x0) / colW)));
-          if (n !== t.span){ t.span = n; el.style.gridColumn = (t.day + 2) + ' / span ' + n; }
-        };
-        const up = () => {
-          document.removeEventListener('mousemove', move);
-          document.removeEventListener('mouseup', up);
-          el.draggable = true; commit();
-        };
-        document.addEventListener('mousemove', move);
-        document.addEventListener('mouseup', up);
-      };
-    }
-    g.appendChild(el);
-  });
-
-  const lg = document.getElementById('legend');
-  lg.innerHTML = '';
-  COLORS.forEach(c => {
-    const s = document.createElement('div');
-    s.className = 'lg';
-    s.innerHTML = '<i class="sw" style="background:var(--' + c + '-f);border-color:var(--' + c + '-s)"></i>';
-    s.appendChild(document.createTextNode(b.legend[c] || c));
-    if (!viewOnly){
-      s.title = 'Rename this colour';
-      s.onclick = () => { const n = prompt('Label for this colour', b.legend[c] || ''); if (n !== null){ b.legend[c] = n.trim(); commit(); } };
-    } else s.style.cursor = 'default';
-    lg.appendChild(s);
-  });
-}
-
-/* ============================================================
-   7. Task modal
-   ============================================================ */
-function fillSelects(){
-  const b = board();
-  const ls = document.getElementById('f-lane'); ls.innerHTML = '';
-  b.lanes.forEach(l => { const o = document.createElement('option'); o.value = l.id; o.textContent = l.name; ls.appendChild(o); });
-  const ds = document.getElementById('f-day'); ds.innerHTML = '';
-  for (let d = 0; d < b.days; d++){
-    const o = document.createElement('option');
-    o.value = d; o.textContent = dayInfo(d).short + ' ' + dayInfo(d).label;
-    ds.appendChild(o);
-  }
-  const cw = document.getElementById('f-colors'); cw.innerHTML = '';
-  COLORS.forEach(c => {
-    const s = document.createElement('div');
-    s.className = 'swatch c-' + c; s.dataset.c = c; s.title = b.legend[c] || c;
-    s.onclick = () => setColor(c);
-    cw.appendChild(s);
-  });
-}
-function setColor(c){
-  pickedColor = c;
-  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('sel', s.dataset.c === c));
-}
-function openModal(t){
-  editing = t;
-  document.getElementById('mtitle').textContent = 'Edit task';
-  const ln = (board().lanes.find(l => l.id === t.lane) || {}).name || '';
-  document.getElementById('mhint').textContent = ln + ' · ' + taskRange(t);
-  document.getElementById('f-del').style.display = '';
-  document.getElementById('f-dup').style.display = '';
-  fillSelects();
-  document.getElementById('f-title').value = t.title;
-  document.getElementById('f-sub').value = t.sub || '';
-  document.getElementById('f-owner').value = t.owner || '';
-  document.getElementById('f-status').value = t.status || 'planned';
-  document.getElementById('f-lane').value = t.lane;
-  document.getElementById('f-day').value = t.day;
-  document.getElementById('f-span').value = t.span;
-  document.getElementById('f-notes').value = t.notes || '';
-  setColor(t.color);
-  document.getElementById('overlay').classList.add('on');
-  document.getElementById('f-title').focus();
-}
-function newTask(laneId, day, owner){
-  editing = null;
-  document.getElementById('mtitle').textContent = 'New task';
-  document.getElementById('mhint').textContent = '';
-  document.getElementById('f-del').style.display = 'none';
-  document.getElementById('f-dup').style.display = 'none';
-  fillSelects();
-  document.getElementById('f-title').value = '';
-  document.getElementById('f-sub').value = '';
-  document.getElementById('f-owner').value = owner || '';
-  document.getElementById('f-status').value = 'planned';
-  document.getElementById('f-lane').value = laneId || board().lanes[0].id;
-  document.getElementById('f-day').value = day != null ? day : Math.max(0, todayIndex());
-  document.getElementById('f-span').value = 1;
-  document.getElementById('f-notes').value = '';
-  setColor('teal');
-  document.getElementById('overlay').classList.add('on');
-  document.getElementById('f-title').focus();
-}
-function readForm(){
-  const b = board();
-  const day = +document.getElementById('f-day').value;
-  return {
-    lane: document.getElementById('f-lane').value, day: day,
-    span: Math.max(1, Math.min(b.days - day, +document.getElementById('f-span').value || 1)),
-    color: pickedColor,
-    title: document.getElementById('f-title').value.trim(),
-    sub: document.getElementById('f-sub').value.trim(),
-    owner: document.getElementById('f-owner').value.trim(),
-    status: document.getElementById('f-status').value,
-    notes: document.getElementById('f-notes').value.trim()
-  };
-}
-function saveTask(){
-  const d = readForm();
-  if (!d.title){ document.getElementById('f-title').focus(); return; }
-  if (editing) Object.assign(editing, d); else board().tasks.push(Object.assign({ id: uid() }, d));
-  closeModal(); commit();
-}
-function duplicateTask(){
-  const d = readForm();
-  if (!d.title) return;
-  board().tasks.push(Object.assign({ id: uid() }, d));
-  closeModal(); commit(); toast('Task duplicated');
-}
-function deleteTask(){
-  if (!editing) return;
-  board().tasks = board().tasks.filter(x => x.id !== editing.id);
-  closeModal(); commit();
-}
-function closeModal(){ document.getElementById('overlay').classList.remove('on'); editing = null; }
-
-/* ============================================================
-   8. Board controls
-   ============================================================ */
-function switchBoard(id){ app.activeId = id; filterOwner = ''; commit(); }
-function newBoard(){
-  const n = prompt('Plan name', 'Week of ' + new Date().toDateString().slice(4));
-  if (!n) return;
-  const b = emptyBoard(n.trim());
-  app.boards.push(b); app.activeId = b.id; commit();
-}
-function dupBoard(){
-  const c = clone(board());
-  c.id = uid(); c.name = board().name + ' (copy)';
-  c.lanes.forEach(l => { const old = l.id; l.id = uid(); c.tasks.forEach(t => { if (t.lane === old) t.lane = l.id; }); });
-  c.tasks.forEach(t => t.id = uid());
-  app.boards.push(c); app.activeId = c.id; commit(); toast('Plan duplicated');
-}
-function rollForward(){
-  const src = board();
-  const shiftBy = src.days;
-  const c = clone(src);
-  c.id = uid();
-  const nd = new Date(src.start + 'T00:00:00'); nd.setDate(nd.getDate() + shiftBy);
-  c.start = iso(nd);
-  c.name = src.name.replace(/\s*\(w\/c .*\)$/,'') + ' (w/c ' + nd.getDate() + ' ' + MONTHS[nd.getMonth()] + ')';
-  c.deadlines = []; c.holidays = [];
-  c.lanes.forEach(l => { const old = l.id; l.id = uid(); c.tasks.forEach(t => { if (t.lane === old) t.lane = l.id; }); });
-  const carried = c.tasks.filter(t => (t.status || 'planned') !== 'done');
-  carried.forEach(t => {
-    t.id = uid();
-    t.day = Math.max(0, Math.min(c.days - 1, t.day - shiftBy));
-    t.span = Math.max(1, Math.min(c.days - t.day, t.span));
-  });
-  c.tasks = carried;
-  app.boards.push(c); app.activeId = c.id; commit();
-  toast((src.tasks.length - carried.length) + ' done dropped, ' + carried.length + ' carried over');
-}
-function renameBoard(){
-  const n = prompt('Plan name', board().name);
-  if (n && n.trim()){ board().name = n.trim(); commit(); }
-}
-function delBoard(){
-  if (app.boards.length === 1){ toast('Keep at least one plan'); return; }
-  if (!confirm('Delete "' + board().name + '"?')) return;
-  app.boards = app.boards.filter(b => b.id !== app.activeId);
-  app.activeId = app.boards[0].id; commit();
-}
-function setStart(v){ if (v){ board().start = v; commit(); } }
-function shift(n){ const d = dayDate(0); d.setDate(d.getDate() + n); board().start = iso(d); commit(); }
-function jumpToday(){ const d = new Date(); d.setDate(d.getDate() - 1); board().start = iso(d); commit(); }
-function changeDays(delta){
-  const b = board();
-  const n = Math.max(1, Math.min(28, b.days + delta));
-  if (n < b.days){
-    b.tasks = b.tasks.filter(t => t.day < n);
-    b.tasks.forEach(t => t.span = Math.min(t.span, n - t.day));
-    b.holidays = b.holidays.filter(h => h < n);
-    b.deadlines = b.deadlines.filter(h => h < n);
-  }
-  b.days = n; commit();
-}
-function addLane(){
-  if (groupBy !== 'lane') return;
-  const n = prompt('Row name'); if (!n) return;
-  board().lanes.push({ id: uid(), name: n.trim(), sub: '' }); commit();
-}
-function setFilter(v){ filterOwner = v; render(); }
-function setGroup(g){ groupBy = g; render(); }
-function toggleDensity(){
-  const on = document.body.classList.toggle('compact');
-  const btn = document.getElementById('densityBtn');
-  btn.textContent = on ? 'Comfortable' : 'Compact';
-  btn.classList.toggle('on', on);
-}
-
-/* ============================================================
-   9. Share link
-   ============================================================ */
-function b64enc(str){
-  const bytes = new TextEncoder().encode(str);
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000)
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-function b64dec(s){
-  const bin = atob(s.replace(/-/g,'+').replace(/_/g,'/'));
-  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
-}
-function packBoard(b){
-  return { n:b.name, s:b.start, d:b.days, dl:b.deadlines, h:b.holidays,
-    g:[b.legend.coral, b.legend.purple, b.legend.teal, b.legend.gray],
-    l:b.lanes.map(l => [l.id, l.name, l.sub || '']),
-    t:b.tasks.map(t => [t.lane, t.day, t.span, COLORS.indexOf(t.color), t.title, t.sub || '',
-                        t.owner || '', STATUSES.indexOf(t.status || 'planned'), t.notes || '']) };
-}
-function unpackBoard(p){
-  return { id: uid(), name: p.n, start: p.s, days: p.d, deadlines: p.dl || [], holidays: p.h || [],
-    legend: { coral:p.g[0], purple:p.g[1], teal:p.g[2], gray:p.g[3] },
-    lanes: p.l.map(l => ({ id:l[0], name:l[1], sub:l[2] })),
-    tasks: p.t.map(t => ({ id: uid(), lane:t[0], day:t[1], span:t[2], color:COLORS[t[3]] || 'teal',
-                           title:t[4], sub:t[5], owner:t[6], status:STATUSES[t[7]] || 'planned', notes:t[8] || '' })) };
-}
-function shareLink(){
-  const enc = b64enc(JSON.stringify(packBoard(board())));
-  const base = location.href.split('#')[0];
-  const link = base + '#p=' + enc;
-  const local = /^(blob:|about:|data:)/.test(base) || base === '';
-  const hint = local
-    ? 'This page is not served from a URL, so the link below only works once the file is hosted (Netlify, Vercel, any static host). Until then, send the plan with Export.'
-    : 'Read-only. Anyone with this link sees the plan exactly as it is now — later edits will not reach them.';
-  openText('Share link', hint, link, 'Copy link', () => {
-    const ta = document.getElementById('txtArea'); ta.select();
-    if (navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(() => document.execCommand('copy'));
-    else document.execCommand('copy');
-    toast('Link copied');
-  });
-}
-async function adoptShared(){
-  const shared = clone(board());
-  const saved = await load();
-  const store = (saved && saved.boards && saved.boards.length) ? saved
-              : (() => { const b = seedBoard(); return { activeId: b.id, boards: [b] }; })();
-  shared.id = uid();
-  store.boards.push(shared);
-  store.activeId = shared.id;
-  store.theme = document.body.classList.contains('light') ? 'light' : 'dark';
-  app = store; viewOnly = false;
-  document.body.classList.remove('viewonly');
-  history.replaceState(null, '', location.href.split('#')[0]);
-  undoStack = []; redoStack = []; prevState = null;
-  commit(); toast('Copied into your planner');
-}
-
-/* ============================================================
-   10. Summary, JSON, ICS, PDF
-   ============================================================ */
-function taskRange(t){
-  const s = dayInfo(t.day), span = Math.min(t.span, board().days - t.day);
-  if (span === 1) return s.short + ' ' + s.label;
-  const e = dayInfo(t.day + span - 1);
-  return s.short + ' ' + s.label + ' – ' + e.short + ' ' + e.label;
-}
-function buildSummary(){
-  const b = board();
-  const out = [b.name, dayInfo(0).label + ' – ' + dayInfo(b.days - 1).label, ''];
-  rows().forEach(r => {
-    const ts = b.tasks.filter(t => rowKeyOf(t) === r.key && (!filterOwner || t.owner === filterOwner))
-                      .sort((x,y) => x.day - y.day);
-    if (!ts.length) return;
-    out.push(r.name.toUpperCase());
-    ts.forEach(t => {
-      const bits = [t.sub, t.owner, STATUS_LABEL[t.status || 'planned']].filter(Boolean).join(' · ');
-      out.push('  ' + taskRange(t) + ' — ' + t.title + (bits ? ' (' + bits + ')' : ''));
-      if (t.notes) t.notes.split('\n').forEach(n => out.push('      ' + n));
-    });
-    out.push('');
-  });
-  if (b.deadlines.length)
-    out.push('Deadline: ' + b.deadlines.slice().sort((a,c)=>a-c).map(d => dayInfo(d).short + ' ' + dayInfo(d).label).join(', '));
-  return out.join('\n').trim();
-}
-function copySummary(){
-  openText('Summary', 'Grouped by ' + (groupBy === 'lane' ? 'workstream' : 'owner') + ' — ready to paste into an email.',
-    buildSummary(), 'Copy', () => {
-      const ta = document.getElementById('txtArea'); ta.select();
-      if (navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(() => document.execCommand('copy'));
-      else document.execCommand('copy');
-      toast('Copied to clipboard');
-    });
-}
-function slug(){ return board().name.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-').toLowerCase() || 'plan'; }
-function download(content, type, ext){
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], { type }));
-  a.download = slug() + ext;
-  a.click(); URL.revokeObjectURL(a.href);
-}
-function exportJSON(){ download(JSON.stringify(board(), null, 2), 'application/json', '.json'); toast('Plan exported'); }
-function importJSON(){
-  openText('Import a plan', 'Paste JSON from a previous export.', '', 'Import', () => {
-    try {
-      const d = JSON.parse(document.getElementById('txtArea').value);
-      (d.boards ? d.boards : [d]).forEach(x => { x.id = uid(); app.boards.push(x); app.activeId = x.id; });
-      closeText(); commit(); toast('Plan imported');
-    } catch(e){ toast('That is not valid plan JSON'); }
-  });
-}
-function icsDate(d){ return d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0'); }
-function icsEsc(s){ return (s || '').replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n'); }
-function exportICS(){
-  const b = board();
-  const stamp = new Date().toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
-  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Delivery Planner//EN','CALSCALE:GREGORIAN'];
-  b.tasks.forEach(t => {
-    const span = Math.min(t.span, b.days - t.day);
-    const s = dayDate(t.day), e = dayDate(t.day + span);
-    const lane = (b.lanes.find(l => l.id === t.lane) || {}).name || '';
-    const desc = [t.sub, t.owner ? 'Owner: ' + t.owner : '', 'Status: ' + (t.status || 'planned'), t.notes]
-                 .filter(Boolean).join('\n');
-    L.push('BEGIN:VEVENT', 'UID:' + t.id + '@planner', 'DTSTAMP:' + stamp,
-      'DTSTART;VALUE=DATE:' + icsDate(s), 'DTEND;VALUE=DATE:' + icsDate(e),
-      'SUMMARY:' + icsEsc((lane ? lane + ': ' : '') + t.title),
-      'DESCRIPTION:' + icsEsc(desc), 'TRANSP:TRANSPARENT', 'END:VEVENT');
-  });
-  b.deadlines.forEach(d => {
-    const s = dayDate(d), e = dayDate(d + 1);
-    L.push('BEGIN:VEVENT', 'UID:dl' + d + b.id + '@planner', 'DTSTAMP:' + stamp,
-      'DTSTART;VALUE=DATE:' + icsDate(s), 'DTEND;VALUE=DATE:' + icsDate(e),
-      'SUMMARY:' + icsEsc('DEADLINE — ' + b.name), 'END:VEVENT');
-  });
-  L.push('END:VCALENDAR');
-  download(L.join('\r\n'), 'text/calendar', '.ics');
-  toast('Calendar file downloaded');
-}
-function loadScript(src){
-  return new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = src; s.onload = res; s.onerror = () => rej(new Error('load failed'));
-    document.head.appendChild(s);
-  });
-}
-async function exportPDF(){
-  const node = document.getElementById('capture');
-  const scroller = node.querySelector('.scroll');
-  const bgHex = cssVar('--bg') || '#171717';
-  toast('Building PDF…');
-  try {
-    if (!window.html2canvas) await loadScript(CDN_H2C);
-    if (!window.jspdf) await loadScript(CDN_JSPDF);
-    scroller.style.overflow = 'visible';
-    const canvas = await html2canvas(node, { backgroundColor: bgHex, scale:2, useCORS:true,
-      windowWidth: Math.max(document.documentElement.clientWidth, node.scrollWidth + 60) });
-    scroller.style.overflow = '';
-    const { jsPDF } = window.jspdf;
-    const w = canvas.width, h = canvas.height;
-    const pdf = new jsPDF({ orientation: w >= h ? 'landscape' : 'portrait', unit:'pt', format:'a4' });
-    const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), m = 16;
-    const k = Math.min((pw - m*2)/w, (ph - m*2)/h);
-    pdf.setFillColor(bgHex); pdf.rect(0,0,pw,ph,'F');
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pw - w*k)/2, (ph - h*k)/2, w*k, h*k);
-    pdf.save(slug() + '.pdf');
-    toast('PDF saved');
-  } catch(e){
-    scroller.style.overflow = '';
-    toast('Opening print dialog — choose "Save as PDF"');
-    setTimeout(() => window.print(), 600);
-  }
-}
-function openText(title, hint, value, action, fn){
-  document.getElementById('txtTitle').textContent = title;
-  document.getElementById('txtHint').textContent = hint || '';
-  document.getElementById('txtArea').value = value;
-  const btn = document.getElementById('txtAction');
-  btn.textContent = action; btn.onclick = fn;
-  document.getElementById('textOverlay').classList.add('on');
-}
-function closeText(){ document.getElementById('textOverlay').classList.remove('on'); }
-
-/* ============================================================
-   11. Boot
-   ============================================================ */
-document.getElementById('overlay').onclick = e => { if (e.target.id === 'overlay') closeModal(); };
-document.getElementById('textOverlay').onclick = e => { if (e.target.id === 'textOverlay') closeText(); };
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ closeModal(); closeText(); }
-  const modalOpen = document.getElementById('overlay').classList.contains('on');
-  if (e.key === 'Enter' && modalOpen && document.activeElement.tagName !== 'TEXTAREA') saveTask();
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !modalOpen && !viewOnly){
-    e.preventDefault(); e.shiftKey ? redo() : undo();
-  }
-});
-
-(async () => {
-  const m = location.hash.match(/[#&]p=([^&]+)/);
-  if (m){
-    try {
-      const b = unpackBoard(JSON.parse(b64dec(m[1])));
-      app = { activeId: b.id, boards: [b] };
-      viewOnly = true;
-      document.body.classList.add('viewonly');
-      applyTheme(systemTheme());
-      render();
-      return;
-    } catch(err){ toast('Shared link could not be read'); }
-  }
-  const saved = await load();
-  app = (saved && saved.boards && saved.boards.length)
-        ? saved
-        : (() => { const b = seedBoard(); return { activeId: b.id, boards: [b] }; })();
-  if (!app.boards.some(b => b.id === app.activeId)) app.activeId = app.boards[0].id;
-  applyTheme(app.theme || systemTheme());
-  prevState = JSON.stringify(app);
-  document.getElementById('storeNote').textContent =
-    'Plans are saved in ' + Store.label + ' — Export anything you want to keep permanently.';
-  render();
-})();
-</script>
+  <input id="importFile" type="file" accept="application/json,.json" hidden />
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
 </body>
 </html>
