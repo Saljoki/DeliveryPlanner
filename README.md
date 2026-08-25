@@ -2,23 +2,24 @@
 
 A single-file delivery planning board — lanes, tasks, deadlines, holidays, share
 links, and PDF/ICS/JSON export. Everything lives in
-[`delivery-planner.html`](delivery-planner.html): inline CSS and JS, no build
-step, no backend.
+[`index.html`](index.html): inline CSS and JS, no build step, no backend.
 
-Once deployed it is served at https://saljoki.github.io/DeliveryPlanner/ — that
-URL is dead until the two setup steps below are done.
+Because it is one static file at the repo root, any static host serves it as-is.
 
 ## Deployment
 
-Pushes to `main` publish the site via
-[`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml). The
-workflow copies `delivery-planner.html` to `_site/index.html` and hands it to
-the GitHub Pages actions, so the HTML file stays the single source of truth —
-there is no duplicated copy to keep in sync.
+Two routes are wired up; either works, and they can coexist.
 
-One-time setup, in the repo's **Settings → Pages**: set **Source** to **GitHub
-Actions**. After that every push to `main` redeploys; `workflow_dispatch` lets
-you deploy manually from the Actions tab.
+**GitHub Actions** — [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+assembles `_site/` and publishes on every push to `main`, plus manual runs from
+the Actions tab. Requires **Settings → Pages → Source: GitHub Actions**.
+
+**Deploy from a branch** — set **Settings → Pages → Source** to **Deploy from a
+branch**, `main`, `/ (root)`. GitHub's own Pages builder serves `index.html`
+directly, using no Actions minutes. The root `.nojekyll` keeps Jekyll from
+processing the file. Useful when Actions is unavailable.
+
+Either way the site lands at https://saljoki.github.io/DeliveryPlanner/
 
 ## Where plans are stored
 
@@ -28,14 +29,17 @@ devices, and clearing site data clears them. Use **Export** for anything worth
 keeping, or **Share link**, which packs the whole plan into the URL hash so
 recipients get a read-only copy without any storage at all.
 
+Because the key is per origin, the same plan does not carry across two different
+deployments of this app — each host has its own storage.
+
 ## Running locally
 
-Open the file directly, or serve it if you want share links to produce real
+Open `index.html` directly, or serve it if you want share links to produce real
 URLs:
 
 ```sh
 python3 -m http.server 8000
-# then visit http://localhost:8000/delivery-planner.html
+# then visit http://localhost:8000/
 ```
 
 PDF export pulls `html2canvas` and `jsPDF` from cdnjs on first use, so that one
