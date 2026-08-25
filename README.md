@@ -5,7 +5,8 @@ links, and PDF/ICS/JSON export. Everything lives in
 [`delivery-planner.html`](delivery-planner.html): inline CSS and JS, no build
 step, no backend.
 
-**Live:** https://saljoki.github.io/DeliveryPlanner/
+Once deployed it is served at https://saljoki.github.io/DeliveryPlanner/ — that
+URL is dead until the two setup steps below are done.
 
 ## Deployment
 
