@@ -55,6 +55,9 @@
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--t2);
         background:var(--panel);border:1px solid var(--line-soft);border-radius:20px;padding:3px 10px}
   .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .chip.warn{color:var(--coral-t);border-color:var(--coral-s);background:var(--coral-f);
+             cursor:pointer;transition:filter .14s}
+  .chip.warn:hover{filter:brightness(1.15)}
 
   .controls{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
   .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
@@ -438,6 +441,31 @@ const Store = (() => {
   };
 })();
 
+/* Export state — localStorage keeps edits, but it is not a backup: it does not
+   survive a cleared cache and does not follow the user to another browser or
+   device. Track whether the plan still matches its last restorable export so the
+   UI can say so, rather than implying "saved" means "safe". */
+function boardSig(b){
+  const c = JSON.parse(JSON.stringify(b));
+  delete c.exportSig;
+  const str = JSON.stringify(c);
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return h;
+}
+function isExported(b){
+  if (b.exportSig === undefined) b.exportSig = boardSig(b);  // fresh plan, nothing to lose yet
+  return b.exportSig === boardSig(b);
+}
+function markExported(){ board().exportSig = boardSig(board()); save(); render(); }
+
+let nudged = false;
+function nudgeBackup(){
+  if (nudged || viewOnly || isExported(board())) return;
+  nudged = true;
+  toast('Saved in ' + Store.label + ' only — use Export to keep a copy');
+}
+
 let saveWarned = false;
 async function save(){
   if (viewOnly || !app) return;
@@ -456,7 +484,7 @@ function commit(){
   if (prevState){ undoStack.push(prevState); if (undoStack.length > 50) undoStack.shift(); }
   redoStack = [];
   prevState = JSON.stringify(app);
-  render(); save();
+  render(); save(); nudgeBackup();
 }
 function undo(){
   if (!undoStack.length){ toast('Nothing to undo'); return; }
@@ -531,6 +559,16 @@ function render(){
     c.appendChild(document.createTextNode(counts[s] + ' ' + (STATUS_LABEL[s] || 'planned')));
     sub.appendChild(c);
   });
+
+  if (!viewOnly && !isExported(b)){
+    const w = document.createElement('span');
+    w.className = 'chip warn';
+    w.title = 'These edits exist only in ' + Store.label + '. Click to download a .json copy.';
+    w.onclick = exportJSON;
+    w.innerHTML = '<i class="dot" style="background:var(--coral-s)"></i>';
+    w.appendChild(document.createTextNode('not exported'));
+    sub.appendChild(w);
+  }
 
   const bs = document.getElementById('boardSel');
   bs.innerHTML = '';
@@ -907,6 +945,7 @@ function shareLink(){
     if (navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(() => document.execCommand('copy'));
     else document.execCommand('copy');
     toast('Link copied');
+    if (!local) markExported();   // the copied link restores the plan; opening the dialog alone does not
   });
 }
 async function adoptShared(){
@@ -969,7 +1008,10 @@ function download(content, type, ext){
   a.download = slug() + ext;
   a.click(); URL.revokeObjectURL(a.href);
 }
-function exportJSON(){ download(JSON.stringify(board(), null, 2), 'application/json', '.json'); toast('Plan exported'); }
+function exportJSON(){
+  download(JSON.stringify(board(), null, 2), 'application/json', '.json');
+  markExported(); toast('Plan exported');
+}
 function importJSON(){
   openText('Import a plan', 'Paste JSON from a previous export.', '', 'Import', () => {
     try {
