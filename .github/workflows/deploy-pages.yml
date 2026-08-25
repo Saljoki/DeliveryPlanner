@@ -24,7 +24,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site
-          cp delivery-planner.html _site/index.html
+          cp index.html _site/index.html
           touch _site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3
